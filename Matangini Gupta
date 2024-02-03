@@ -1,0 +1,84 @@
+// Matangini Gupta
+// 2201994810
+
+// Pin connected to PIR motion sensor for interrupts
+const int pirPin = 2;
+// Built-in LED pin
+const int ledPin = 13;
+// Analog pin connected to the temperature sensor
+const int tempSensorPin = A3;
+
+// Variables to track motion and time
+volatile bool motionDetected = false;
+volatile unsigned long lastMotionTime = 0;
+const unsigned long motionTimeout = 5000; // 5 seconds of no motion before turning off LED
+
+void setup() {
+  // Initialize serial communication for debugging
+  Serial.begin(9600);
+  
+  // Initialize the PIR sensor pin as input
+  pinMode(pirPin, INPUT);
+  
+  // Initialize the LED pin as output
+  pinMode(ledPin, OUTPUT);
+  
+  // Turn off the LED initially
+  digitalWrite(ledPin, LOW);
+  
+  Serial.println("PIR Motion Sensor Test");
+  Serial.println("=============");
+  Serial.println("Waiting for sensor to calibrate..."); 
+  delay(2000); // Sensor calibration time
+  Serial.println("Sensor ready");
+
+  // Attach interrupt to the PIR sensor pin
+  attachInterrupt(digitalPinToInterrupt(pirPin), motionDetectedISR, CHANGE);
+}
+
+void loop() {
+  // Read temperature from the sensor
+  int tempReading = analogRead(tempSensorPin);
+  // Convert the analog reading to voltage
+  float voltage = tempReading * (5.0 / 1023.0);
+  // Convert the voltage to temperature in degrees Celsius
+  float temperatureC = (voltage - 0.5) * 100.0;
+  
+  // Print temperature to serial monitor
+  Serial.print("Temperature: ");
+  Serial.print(temperatureC);
+  Serial.println(" °C");
+
+  // Add delay for temperature sensor reading
+  delay(1000); // Adjust the delay time as per your requirement
+
+  // Main loop is empty because motion detection is handled by interrupts
+}
+
+// Interrupt Service Routine for motion detection
+void motionDetectedISR() {
+  if (digitalRead(pirPin) == HIGH) {
+    Serial.println("Motion detected so LED is turned on!");
+    // Update motion detection state and time
+    motionDetected = true;
+    lastMotionTime = millis();
+    // Smoothly turn on the LED
+    for (int brightness = 0; brightness <= 255; brightness++) {
+      analogWrite(ledPin, brightness);
+      delay(10); // Adjust the delay for smoother transition
+    }
+  } else {
+    // No motion detected
+    Serial.println("No motion so LED is turned off!");
+    // Check if motion was previously detected and timeout has elapsed
+    if (motionDetected && (millis() - lastMotionTime >= motionTimeout)) {
+      // Smoothly turn off the LED
+      for (int brightness = 255; brightness >= 0; brightness--) {
+        analogWrite(ledPin, brightness);
+        delay(10); // Adjust the delay for smoother transition
+      }
+      motionDetected = false;
+    }
+  }
+}
+
